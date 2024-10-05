@@ -1,0 +1,34 @@
+version: "3.9"
+services:
+  postgres:
+    image: bitnami/postgresql:latest
+    ports:
+      - 5432:5432
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRESQL_USERNAME: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB_NAME}
+    volumes:
+      - ./postgresql.conf:/opt/bitnami/postgresql/conf/conf.d/postgresql.conf
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 3s
+      timeout: 5s
+      retries: 2
+
+  db-migrator:
+    image: golang:1.21
+    container_name: db-migrator
+    depends_on:
+      - postgres
+    volumes:
+      - ../../db/migrations:/go/db/migrations
+      - ../../db/fixtures:/go/db/fixtures
+      - .env:/go/infrastructure/local/.env
+      - ../../Makefile:/go/Makefile
+    command: [ "sh", "-c", "export DB_HOST=postgres && make migrate-up && make fixtures-up" ]
+
